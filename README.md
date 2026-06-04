@@ -30,5 +30,4 @@ Bu proje, bir ESP32 mikrodenetleyicisini internete ihtiyaç duymayan yerel bir s
 ## 🤝 Katkıda Bulunma
 Bu proje geliştirilmeye açıktır. Örneğin; mesajların kalıcı olması için SD kart desteği veya şifreleme özellikleri eklenebilir. Pull request açarak katkıda bulunabilirsiniz!
 
----
-**Geliştiren:** [Adınız/Kullanıcı Adınız]
+
