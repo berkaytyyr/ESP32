@@ -1,0 +1,144 @@
+# 💬 ESP32 İnternetsiz Yerel Sohbet Sunucusu
+
+Herhangi bir internet bağlantısına veya merkezi sunucuya ihtiyaç duymadan, ESP32'nin kendi üzerinde hem Wi-Fi erişim noktası (Access Point) hem de web sunucusu olarak çalıştığı yerel ağ tabanlı gerçek zamanlı sohbet uygulaması.
+
+---
+
+##  Dosya Yapısı
+
+```
+03_ESP32_Sohbet_Sunucu/
+├── esp32_sohbet.ino    # Ana uygulama - AP + Web sunucu + Sohbet mantığı
+└── README.md
+```
+
+---
+
+##  Nasıl Çalışır?
+
+ESP32 aynı anda iki görev üstlenir:
+
+- **Modem gibi:** Çevresine Wi-Fi ağı yayınlar (Access Point modu)
+- **Sunucu gibi:** Bağlanan kullanıcıları bir web sohbet arayüzüne yönlendirir
+
+Kullanıcılar akıllı telefon veya bilgisayarlarıyla bu ağa bağlandığında tarayıcı otomatik olarak sohbet odasına yönlendirilir. Kurulum gerekmez, uygulama indirilmez.
+
+```
+[Telefon A] ──┐
+[Telefon B] ──┤── Wi-Fi (AP) ──► ESP32 ──► Web Sunucu ──► Sohbet Odası
+[Bilgisayar] ─┘
+```
+
+---
+
+##  Kullanılan Web Teknolojileri
+
+### HTML — Yapı
+Sohbet odasının tüm iskeletini oluşturur:
+- Giriş ekranı (kullanıcı adı)
+- Mesaj görüntüleme alanı
+- Aktif kullanıcılar listesi
+- Mesaj yazma kutusu
+
+### CSS — Görsel Tasarım
+- Modern mesajlaşma uygulaması görünümü
+- Kendi mesajları sağa, diğerlerini sola yaslar
+- Gece modu renk paleti
+- Mobil cihazlara tam uyumlu (responsive) tasarım
+
+### JavaScript — Canlı Deneyim
+- Sayfayı yenilemeden her **1.5 saniyede** bir yeni mesajları çeker
+- Yeni mesaj geldiğinde otomatik en alta kaydırır
+- Mesajın yanına gönderilme saatini ekler
+
+---
+
+##  Arka Plan Mimarisi (ESP32 Tarafı)
+
+### Ring Buffer — Döngüsel Bellek
+ESP32'nin kısıtlı RAM'ini verimli kullanmak için mesajlar döngüsel bellekte saklanır. Bellek dolduğunda en eski mesajın üzerine yeni mesaj yazılır; sistem çökmez.
+
+### HTTP Rotalar
+
+| Rota | Yöntem | Açıklama |
+|---|---|---|
+| `/` | GET | Ana sohbet arayüzünü döner |
+| `/veriAl` | GET | Mesajlar + aktif kullanıcı listesini JSON döner |
+| `/mesajYaz` | POST | Yeni mesaj gönderir |
+
+### Kullanıcı Takip Algoritması
+Her `/veriAl` isteğinde kullanıcının IP adresi ve "son görülme" zamanı güncellenir. Son istekten bu yana **10 saniye** geçen kullanıcı otomatik olarak çevrimdışı sayılır.
+
+```
+İstek geldi
+    │
+    ▼
+IP adresi kayıt/güncelle
+    │
+    ▼
+Son görülme = şimdiki zaman
+    │
+    ▼
+10 sn geçen IP'leri listeden çıkar
+```
+
+---
+
+##  Kurulum ve Kullanım
+
+### Gereksinimler
+
+- Arduino IDE 2.x
+- ESP32 board paketi (`espressif/arduino-esp32`)
+- Ekstra kütüphane gerekmez (WebServer ve WiFi dahili)
+
+### Yapılandırma
+
+`esp32_sohbet.ino` içinde AP bilgilerini ayarlayın:
+
+```cpp
+const char* ap_ssid = "ESP32-Sohbet";   // Ağ adı
+const char* ap_password = "12345678";   // Şifre (min 8 karakter)
+```
+
+### Kullanım
+
+1. Kodu ESP32'ye yükleyin
+2. Telefon veya bilgisayardan `ESP32-Sohbet` ağına bağlanın
+3. Tarayıcıda `192.168.4.1` adresini açın
+4. Kullanıcı adınızı girin ve sohbet etmeye başlayın
+
+---
+
+##  Teknik Özellikler
+
+| Özellik | Değer |
+|---|---|
+| Maksimum eş zamanlı kullanıcı | ~5 (ESP32 AP limiti) |
+| Mesaj güncelleme sıklığı | 1.5 saniye |
+| Çevrimdışı tespit süresi | 10 saniye |
+| Bellek yönetimi | Ring buffer |
+| Veri formatı | JSON |
+| İnternet bağlantısı | Gerekmez |
+
+---
+
+##  Teknik Notlar
+
+- **Captive Portal:** Kullanıcı ağa bağlandığında bazı cihazlar otomatik olarak tarayıcıyı açar ve `192.168.4.1`'e yönlendirir
+- **Eş zamanlı istek:** ESP32'nin tek çekirdekli web sunucusu eş zamanlı istekleri sırayla işler; çok fazla kullanıcıda gecikme yaşanabilir
+- **Kalıcı depolama yok:** ESP32 yeniden başlatıldığında mesaj geçmişi silinir; SPIFFS veya EEPROM ile kalıcı hale getirilebilir
+- **Güvenlik:** Uygulama yerel ağda çalıştığından internete açık değildir
+
+---
+
+##  Geliştirme Fikirleri
+
+- [ ] SPIFFS ile mesaj geçmişi kalıcı hale getirme
+- [ ] Kullanıcı başına renk atama
+- [ ] Özel oda / kanal desteği
+- [ ] WebSocket ile polling yerine gerçek zamanlı push
+
+---
+
+*Toyota Otomotiv Sanayi Türkiye A.Ş. — F&ED Departmanı Staj Projesi*
