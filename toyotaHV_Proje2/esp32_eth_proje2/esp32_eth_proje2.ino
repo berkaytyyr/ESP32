@@ -12,15 +12,15 @@
 #define W5500_RST  9
 
 // --- Ağ Ayarları ---
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; 
-IPAddress local_IP(10, 0, 154, 2);
-IPAddress gateway(10, 0, 0, 1);
-IPAddress subnet(255, 255, 0, 0);
+byte mac[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; 
+IPAddress local_IP(0, 0, 0, 0);
+IPAddress gateway(0, 0, 0, 0);
+IPAddress subnet(0, 0, 0, 0);
 
 EthernetClient ethClient;  
 PubSubClient client(ethClient);
 
-// --- D1 (WROOM) İle Birebir Aynı Yapı ---
+
 typedef struct { 
     char id[16];      // String ID (MB2-1 vb.)
     bool state; 
@@ -30,7 +30,7 @@ typedef struct {
 struct_message incoming;
 volatile bool yeniVeri = false;
 
-// ESP-NOW Veri Alım Callback
+
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
     memcpy(&incoming, data, sizeof(incoming));
     yeniVeri = true;
