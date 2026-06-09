@@ -9,17 +9,17 @@
 #define W5500_SCK  13
 #define W5500_CS   14
 #define W5500_RST  9
+// çalıştırmak için bilgileri giriniz
+byte mac[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; 
+IPAddress local_IP(0,0,0,0);
+IPAddress gateway(0,0,0,0);
+IPAddress subnet(0,0,0,0);
 
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; 
-IPAddress local_IP(10,0,154,2);
-IPAddress gateway(10,0,0,1);
-IPAddress subnet(255,255,0,0);
-
-const char* mqtt_server = "10.0.123.1";
-const int mqtt_port = 1883;
-const char* mqtt_user = "fedmqtt";
-const char* mqtt_pass = "Aa12345";
-const char* mqtt_topic = "kontak/messaging";
+const char* mqtt_server = "";
+const int mqtt_port = ;
+const char* mqtt_user = "";
+const char* mqtt_pass = "";
+const char* mqtt_topic = "";
 
 EthernetClient ethClient;  
 PubSubClient client(ethClient);
