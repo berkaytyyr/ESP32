@@ -1,0 +1,139 @@
+ HV Kontak & Kapı İzleme Sistemi
+
+## 📁 Dosya Yapısı
+
+```
+01_HV_Kontak_Izleme/
+├── esp32_HV_eth.ino        # Master Gateway - ESP32-S3-ETH
+├── esp32_HV_id1.ino        # MB1-1 uç düğüm - Şalt sahası (4 kontak)
+├── esp32_HV_id234.ino      # MB1-2/3/4 uç düğümler - HV iç kapılar (1 kontak)
+└── README.md
+```
+
+
+## 📡 Sistem Mimarisi
+
+```
+[MB1-1] ──┐
+[MB1-2] ──┤  ESP-NOW  ┌──────────┐  Ethernet  ┌──────┐  MQTT  ┌──────────┐
+[MB1-3] ──┼──────────►│   MB1    │────────────►│Switch│───────►│ Node-RED │──► FED-NET Alarm
+[MB1-4] ──┘           │ ESP32-ETH│             └──────┘        └──────────┘
+                       └──────────┘
+```
+
+Tüm uç düğümler ESP-NOW ile Master'a veri gönderir. Master, Ethernet üzerinden MQTT broker'a publish eder. Node-RED ham veriyi yorumlayarak FED-NET alarm sayfasına iletir.
+
+---
+
+## 📌 Kontak Tanımlamaları
+
+### MB1-1 — Şalt Sahası (4 Kontak)
+
+| Kontak | GPIO | İzlenen Nokta | Alarm Koşulu |
+|---|---|---|---|
+| K1 | 27 | HV Sahası Giriş Pimi | Pim çekildiğinde |
+| K2 | 26 | Pim Alarm Çıkışı | 15 dk içinde pim geri takılmadığında |
+| K3 | 25 | Kablo Kanalı Su Sensörü | Kanalda su biriktiğinde |
+| K4 | 33 | Drenaj Pompa Arıza | Pompa arıza verdiğinde |
+
+### MB1-2, MB1-3, MB1-4 — HV Binası İç Kapılar (1 Kontak)
+
+| Kontak | GPIO | İzlenen Nokta | Alarm Koşulu |
+|---|---|---|---|
+| K1 | 26 | Kapı Sensörü | Kapı açıldığında |
+
+---
+
+## 💻 Yazılım
+
+### Uç Düğümler (`esp32_HV_id1.ino` / `esp32_HV_id234.ino`)
+
+- Pinler `INPUT_PULLUP` modunda tanımlanır
+- Her **100 ms**'de dört pin taranır, değişiklik tespit edilirse JSON mesajı gönderilir
+- Her **3 saniyede** bir PING mesajı iletilir
+- Mesaj formatı:
+```json
+{"k1":1,"k2":0,"k3":0,"k4":0,"id":"MB1-1"}
+```
+- Her düğümde `id` değeri farklıdır: `MB1-1`, `MB1-2`, `MB1-3`, `MB1-4`
+
+### Master Gateway (`esp32_HV_eth.ino`)
+
+- W5500 Ethernet çipi SPI üzerinden başlatılır, statik IP atanır
+- `OnDataRecv` callback ile ESP-NOW mesajları ara tampona alınır
+- PING mesajları filtrelenir, gerçek veriler `kontak/messaging` topic'ine publish edilir
+- MQTT bağlantısı koptuğunda non-blocking yapıyla 5 saniyede bir yeniden bağlanma denemesi yapılır
+
+---
+
+## ⚙️ Kurulum
+
+### Gereksinimler
+
+- Arduino IDE 2.x
+- ESP32 board paketi (`espressif/arduino-esp32`)
+- Kütüphaneler:
+  - `PubSubClient` (MQTT)
+  - `Ethernet` (W5500)
+  - `esp_now.h` (dahili)
+
+### Yapılandırma
+
+`esp32_HV_eth.ino` içinde aşağıdaki değerleri kendi ağınıza göre düzenleyin:
+
+```cpp
+IPAddress ip(192, 168, x, x);        // Master statik IP
+const char* mqtt_server = "192.168.x.x";  // MQTT broker IP
+```
+
+`esp32_HV_id1.ino` ve `esp32_HV_id234.ino` içinde Master'ın MAC adresini girin:
+
+```cpp
+uint8_t masterMAC[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX};
+```
+
+`esp32_HV_id234.ino` içinde her cihaza yüklemeden önce ID'yi ayarlayın:
+
+```cpp
+String nodeID = "MB1-2";  // MB1-2, MB1-3 veya MB1-4
+```
+
+---
+
+## 📊 Node-RED Alarm Mantığı
+
+MQTT broker'dan gelen JSON verisi Node-RED tarafından ayrıştırılır ve FED-NET sayfasında görüntülenir:
+
+| Tetiklenen Sinyal | Alarm Mesajı |
+|---|---|
+| MB1-1 K1 | Şalt sahasına giriş yapıldı |
+| MB1-1 K2 | Şalt sahasından çıkış yapılmadı → Kontrol et |
+| MB1-1 K3 | Kablo kanalında su var → Kontrol et |
+| MB1-1 K4 | Drenaj pompa arıza → Kontrol et |
+| MB1-2/3/4 K1 | HV binası iç kapısı açıldı → Kontrol et |
+
+---
+
+## 🔑 Teknik Notlar
+
+- **ESP-NOW + Ethernet birlikte kullanımı:** Wi-Fi `WIFI_STA` modunda aktif tutulur ancak herhangi bir ağa bağlanılmaz
+- **INPUT_PULLUP polarite:** Kontak kapandığında pin LOW okur → `bool k1 = !digitalRead(PIN_K1)` ile düzeltilir
+- **PING filtresi:** `strcmp(gelenMesaj, "PING") != 0` koşuluyla PING'ler MQTT'ye iletilmez
+- **Gecikme:** Uçtan uca gecikme < 150 ms
+
+---
+
+## 📋 Gereksinimler Özeti
+
+```    
+- ESP32-S3-ETH x1
+- ESP32 WROOM D1 Mini x4
+- Kuru kontak sensörleri x7
+- CAT7 Ethernet kablosu
+- MQTT Broker
+- Node-RED
+```
+
+---
+
+*Toyota Otomotiv Sanayi Türkiye A.Ş. — F&ED Departmanı Staj Projesi*
