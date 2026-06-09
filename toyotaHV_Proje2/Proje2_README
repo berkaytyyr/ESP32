@@ -1,0 +1,182 @@
+#  HV Trafo Alanı Giriş Kapısı İzleme — Derin Uyku Tabanlı
+
+154 kV yüksek gerilim trafo alanının giriş kapılarının pil ile çalışan, derin uyku (deep sleep) modunda ESP32 düğümleri aracılığıyla izlenmesini sağlayan endüstriyel IoT sistemi. Şebeke hattı çekilemeyen noktalara özel olarak tasarlanmıştır.
+
+---
+
+##  Neden Bu Proje?
+
+Trafo alanı 154 kV gerilim taşımaktadır. Bu alana yetkisiz veya dikkatsiz bir giriş:
+- Personel hayatını doğrudan tehlikeye atar
+- Yanlış temas tüm fabrikanın elektriğini kesebilir
+
+Önceki HV iç kapı projesinde düğümler şebekeyle beslendiğinden sürekli çalışabilmekteydi. Ancak trafo alanı giriş noktalarına kablo çekilmesi mümkün olmadığından bu proje **pil ile çalışacak** şekilde tasarlanmıştır.
+
+---
+
+##  Dosya Yapısı
+
+```
+02_HV_Trafo_Kapi_DeepSleep/
+├── esp32_d1_proje2.ino     # Uç düğüm - Deep Sleep tabanlı kapı sensörü
+├── esp32_eth_proje2.ino    # Master Gateway - ESP32-S3-ETH
+└── README.md
+```
+
+---
+
+
+
+##  Neden Deep Sleep?
+
+| Mod | Akım Tüketimi |
+|---|---|
+| Normal çalışma | ~240 mA |
+| Deep Sleep | ~10 µA |
+
+Normal modda çalışan bir düğüm pili saatler içinde tüketir. Deep sleep modunda ise yalnızca kapı durumu değiştiğinde uyanır, ~500 ms içinde görevini tamamlar ve tekrar uyur. Bu sayede aynı pil ile **onlarca kat daha uzun** çalışma süresi elde edilir.
+
+---
+
+## 📡 Sistem Mimarisi
+
+```
+[MB2-x]                     [MB1]
+Kapı değişir                ESP32-S3-ETH
+    │                            │
+EXT0 uyanış                      │  Ethernet
+    │    ESP-NOW                 ▼
+    └───────────────────► MQTT Broker ──► Node-RED ──► FED-NET
+```
+
+MB2-x düğümleri aynı Master (MB1) üzerinden sisteme bağlıdır. 01 numaralı projedeki MB1-x düğümleriyle aynı Master'ı paylaşırlar; tüm veriler tek MQTT hattında akar.
+
+---
+
+##  Çalışma Döngüsü
+
+Uç düğümde `loop()` hiçbir zaman çalışmaz. Her uyanışta `setup()` baştan çalışır ve üç adım tamamlanır:
+
+```
+Uyku  ──► [Kapı değişti] ──► EXT0 Uyanış
+                                  │
+                    ┌─────────────▼─────────────┐
+                    │  1. eventType=1 gönder     │  "Uyandım"
+                    │  2. Kapı durumu gönder     │  MQTT'ye iletilir
+                    │  3. eventType=2 gönder     │  "Uyuyorum"
+                    └─────────────┬─────────────┘
+                                  │  ~500 ms
+                    ┌─────────────▼─────────────┐
+                    │       Deep Sleep           │  ~10 µA
+                    └───────────────────────────┘
+```
+
+---
+
+##  Yazılım
+
+### Uç Düğüm (`esp32_d1_proje2.ino`)
+
+**Uyanış ve veri gönderimi:**
+
+```cpp
+// Adım 1 - Uyandım bildirimi (MQTT'ye iletilmez)
+sendEvent(1);
+
+// Adım 2 - Kapı durumu
+bool state = (digitalRead(CONTACT_PIN) == LOW) ? true : false;
+sendData(state);  // {"id":"MB2-1","guc":1}
+
+// Adım 3 - Uykuya dalıyorum bildirimi
+sendEvent(2);
+
+// Uyanış koşulunu ters ayarla (her iki yönlü değişikliği yakala)
+esp_sleep_enable_ext0_wakeup(CONTACT_PIN, !digitalRead(CONTACT_PIN));
+esp_deep_sleep_start();
+```
+
+**Kritik satır — dinamik uyanış koşulu:**
+```cpp
+esp_sleep_enable_ext0_wakeup(CONTACT_PIN, !okunan);
+```
+Cihaz kapı açıkken uyuyor ise kapandığında, kapalıyken uyuyor ise açıldığında uyanır. Sabit değer kullanılsaydı yalnızca tek yönlü değişiklik yakalanırdı.
+
+### Master Gateway (`esp32_eth_proje2.ino`)
+
+- W5500 Ethernet başlatılır, statik IP atanır
+- ESP-NOW mesajı geldiğinde `OnDataRecv` callback tampona alır
+- `eventType=1` ve `eventType=2` mesajları MQTT'ye iletilmez, yalnızca loglama amaçlıdır
+- Kapı durum verisi (`eventType=0`) `kontak/messaging2` topic'ine publish edilir
+- MQTT ClientID her bağlantıda rastgele üretilir (yeniden başlamada çakışma önlenir):
+```cpp
+"S3_ETH_GW_" + String(random(0xffff), HEX)
+```
+
+---
+
+## ⚙️ Kurulum
+
+### Gereksinimler
+
+- Arduino IDE 2.x
+- ESP32 board paketi (`espressif/arduino-esp32`)
+- Kütüphaneler:
+  - `PubSubClient` (MQTT)
+  - `Ethernet` (W5500)
+  - `esp_now.h` (dahili)
+  - `esp_sleep.h` (dahili)
+
+### Yapılandırma
+
+`esp32_eth_proje2.ino` içinde:
+
+```cpp
+IPAddress ip(192, 168, x, x);
+const char* mqtt_server = "192.168.x.x";
+```
+
+`esp32_d1_proje2.ino` içinde:
+
+```cpp
+uint8_t masterMAC[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX};
+String nodeID = "MB2-1";  // Her cihaz için farklı
+```
+
+---
+
+##  Karşılaştırma — Sürekli vs Deep Sleep
+
+| Özellik | 01 HV Kontak (MB1-x) | 02 Trafo Kapı (MB2-x) |
+|---|---|---|
+| Besleme | Şebeke | Pil |
+| Çalışma modu | Sürekli açık | Deep sleep |
+| Güç tüketimi | ~240 mA | ~10 µA (uykuda) |
+| Tarama yöntemi | 100 ms'de bir | Yalnızca değişiklikte |
+| Aktif süre | Sürekli | ~500 ms / olay |
+| Master | MB1 (ortak) | MB1 (ortak) |
+
+---
+
+##  Teknik Notlar
+
+- **EXT0 uyanış:** Yalnızca RTC GPIO pinleri EXT0 için kullanılabilir. WROOM D1 Mini'de GPIO 26 bu özelliği desteklemektedir
+- **Her uyanışta yeniden başlar:** `setup()` baştan çalışır, bu nedenle Wi-Fi/ESP-NOW her seferinde yeniden init edilir
+- **Callback güvenliği:** `OnDataRecv` kesme ortamında çalışır; içinde MQTT publish yapılmaz, veri tampona alınır
+- **MQTT ClientID çakışması:** Sabit ID kullanılırsa broker ikinci bağlantıyı reddeder; rastgele ID ile çözülmüştür
+
+---
+
+##  Gereksinimler Özeti
+
+```
+- ESP32-S3-ETH (Waveshare) x1  ← 01 projesiyle ortak kullanılabilir
+- ESP32 WROOM D1 Mini x N      ← Kapı sayısı kadar
+- Kuru kontak sensörü x N
+- Pil (Li-Ion veya Li-Po)
+- MQTT Broker
+- Node-RED
+```
+
+---
+
+*Toyota Otomotiv Sanayi Türkiye A.Ş. — F&ED Departmanı Staj Projesi*
