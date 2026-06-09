@@ -1,6 +1,6 @@
  HV Kontak & Kapı İzleme Sistemi
 
-## 📁 Dosya Yapısı
+##  Dosya Yapısı
 
 ```
 01_HV_Kontak_Izleme/
@@ -11,7 +11,7 @@
 ```
 
 
-## 📡 Sistem Mimarisi
+##  Sistem Mimarisi
 
 ```
 [MB1-1] ──┐
@@ -25,7 +25,7 @@ Tüm uç düğümler ESP-NOW ile Master'a veri gönderir. Master, Ethernet üzer
 
 ---
 
-## 📌 Kontak Tanımlamaları
+##  Kontak Tanımlamaları
 
 ### MB1-1 — Şalt Sahası (4 Kontak)
 
@@ -44,7 +44,7 @@ Tüm uç düğümler ESP-NOW ile Master'a veri gönderir. Master, Ethernet üzer
 
 ---
 
-## 💻 Yazılım
+##  Yazılım
 
 ### Uç Düğümler (`esp32_HV_id1.ino` / `esp32_HV_id234.ino`)
 
@@ -66,7 +66,7 @@ Tüm uç düğümler ESP-NOW ile Master'a veri gönderir. Master, Ethernet üzer
 
 ---
 
-## ⚙️ Kurulum
+##  Kurulum
 
 ### Gereksinimler
 
@@ -100,7 +100,7 @@ String nodeID = "MB1-2";  // MB1-2, MB1-3 veya MB1-4
 
 ---
 
-## 📊 Node-RED Alarm Mantığı
+##  Node-RED Alarm Mantığı
 
 MQTT broker'dan gelen JSON verisi Node-RED tarafından ayrıştırılır ve FED-NET sayfasında görüntülenir:
 
@@ -114,7 +114,7 @@ MQTT broker'dan gelen JSON verisi Node-RED tarafından ayrıştırılır ve FED-
 
 ---
 
-## 🔑 Teknik Notlar
+##  Teknik Notlar
 
 - **ESP-NOW + Ethernet birlikte kullanımı:** Wi-Fi `WIFI_STA` modunda aktif tutulur ancak herhangi bir ağa bağlanılmaz
 - **INPUT_PULLUP polarite:** Kontak kapandığında pin LOW okur → `bool k1 = !digitalRead(PIN_K1)` ile düzeltilir
@@ -123,7 +123,7 @@ MQTT broker'dan gelen JSON verisi Node-RED tarafından ayrıştırılır ve FED-
 
 ---
 
-## 📋 Gereksinimler Özeti
+##  Gereksinimler Özeti
 
 ```    
 - ESP32-S3-ETH x1
