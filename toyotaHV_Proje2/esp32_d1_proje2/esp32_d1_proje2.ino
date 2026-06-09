@@ -3,9 +3,9 @@
 #include <esp_sleep.h>
 
 // S3-ETH MAC Adresini buraya yaz (Senin verdiğin adres)
-uint8_t broadcastAddress[] = {0x10, 0x51, 0xDB, 0x8F, 0xC5, 0xC0}; 
+uint8_t broadcastAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; 
 
-// --- HER CIHAZ ICIN BURAYI DEGISTIR ---
+
 const char* DEVICE_NAME = "MB2-1"; // id' yi degistir
 
 #define CONTACT_PIN GPIO_NUM_26 // Senin kullandığın pin
