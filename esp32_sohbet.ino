@@ -7,7 +7,6 @@ const char* password = ""; // İstersen buraya 8 haneli bir şifre yazabilirsin
 
 WebServer server(80);
 
-// --- VERİ YAPILARI ---
 #define MAX_MESAJ 40
 struct Mesaj {
   String gonderen;
@@ -29,7 +28,7 @@ struct Kullanici {
 Kullanici kullanicilar[MAX_KULLANICI];
 int kullaniciSayisi = 0;
 
-// --- HTML, CSS VE JS ARAYÜZÜ ---
+
 const char* htmlKodu = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -200,7 +199,7 @@ const char* htmlKodu = R"rawliteral(
 </html>
 )rawliteral";
 
-// --- YARDIMCI FONKSİYONLAR ---
+
 void kullaniciGuncelle(String isim, String ip, String anlikSaat) {
   if (isim == "" || isim == "null") return;
   
@@ -224,7 +223,7 @@ void kullaniciGuncelle(String isim, String ip, String anlikSaat) {
   }
 }
 
-// --- SUNUCU ROTALARI (Gelen İstekleri Karşılama) ---
+
 void handleRoot() {
   server.send(200, "text/html", htmlKodu);
 }
@@ -237,7 +236,7 @@ void handleMesajYaz() {
     String ip = server.client().remoteIP().toString();
     
 
-    // Mesajı hafıza listesine ekle
+
     mesajlar[mesajIndeks].gonderen = isim;
     mesajlar[mesajIndeks].metin = mesaj;
     mesajlar[mesajIndeks].saat = saat;
@@ -262,11 +261,10 @@ void handleVeriAl() {
     kullaniciGuncelle(server.arg("isim"), ip, server.arg("saat"));
   }
 
-  // Cihaz çökmesin diye verileri parça parça (Chunked) gönderiyoruz
+
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/json", "");
-  
-  // 1. KULLANICILAR JSON KISMI
+
   server.sendContent("{\"kullanicilar\":[");
   for (int i = 0; i < kullaniciSayisi; i++) {
     // 10 saniye boyunca hiç sinyal (veriAl isteği) göndermeyen kişi "Pasif (Kırmızı)" sayılır
@@ -283,15 +281,14 @@ void handleVeriAl() {
     if (i < kullaniciSayisi - 1) kJSON += ",";
     server.sendContent(kJSON);
   }
-  
-  // 2. MESAJLAR JSON KISMI
+
   server.sendContent("],\"mesajlar\":[");
   
   int baslangic = (mesajSayisi < MAX_MESAJ) ? 0 : mesajIndeks;
   for (int i = 0; i < mesajSayisi; i++) {
     int gercekIndeks = (baslangic + i) % MAX_MESAJ;
     
-    // Mesajın içindeki olası tırnak işaretlerini maskele (JSON bozulmasını önler)
+    
     String temizMetin = mesajlar[gercekIndeks].metin;
     temizMetin.replace("\"", "\\\"");
     temizMetin.replace("\n", "\\n");
@@ -307,13 +304,13 @@ void handleVeriAl() {
   }
   
   server.sendContent("]}");
-  server.sendContent(""); // Parçalı gönderimi sonlandır
+  server.sendContent(""); 
 }
 
 void setup() {
   Serial.begin(115200);
   
-  // ESP32'yi Wi-Fi Vericisi (Access Point) yapıyoruz
+
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, password);
   
@@ -321,7 +318,7 @@ void setup() {
   Serial.print("Telefondan baglanilacak IP Adresi: ");
   Serial.println(WiFi.softAPIP());
 
-  // Web Sunucusu Rotalarını Başlat
+
   server.on("/", handleRoot);
   server.on("/mesajYaz", HTTP_POST, handleMesajYaz);
   server.on("/veriAl", HTTP_GET, handleVeriAl);
