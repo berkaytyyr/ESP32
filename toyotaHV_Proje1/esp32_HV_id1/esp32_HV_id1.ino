@@ -8,10 +8,10 @@
 #define PIN_K4 33
 
 // ESP32-S3 ETH MAC adresi (alıcı)
-uint8_t receiverMAC[] = {0x10, 0x51, 0xDB, 0x8F, 0xBE, 0x3C}; 
+uint8_t receiverMAC[] = {0x00, 0x00, 0x00, 0x0, 0x00, 0x00}; 
 
 typedef struct struct_message {
-  char mesaj[64]; // String ID ve JSON içeriği için boyut 64'e çıkarıldı
+  char mesaj[64]; // String ID ve JSON içeriği için boyut 64
 } struct_message;
 
 struct_message data;
@@ -25,7 +25,7 @@ bool prevK4 = false;
 // --- ID DEĞİŞİKLİĞİ BURADA ---
 const char* id = "MB1-1"; 
 
-// Heartbeat (Kalp Atışı) değişkenleri
+
 unsigned long sonPingZamani = 0;
 const unsigned long pingAraligi = 3000; 
 
@@ -60,7 +60,7 @@ void loop() {
   bool k4 = !digitalRead(PIN_K4);
 
   if (k1 != prevK1 || k2 != prevK2 || k3 != prevK3 || k4 != prevK4) {
-    // ID artık string olarak ("%s") JSON içine ekleniyor
+
     sprintf(data.mesaj, "{\"k1\":%d,\"k2\":%d,\"k3\":%d,\"k4\":%d,\"id\":\"%s\"}", k1, k2, k3, k4, id);
 
     esp_now_send(receiverMAC, (uint8_t*)&data, sizeof(data));
